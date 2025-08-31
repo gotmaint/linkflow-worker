@@ -1,3 +1,8 @@
+app.get("/", (_req, res) => {
+  res.status(200).send("OK");
+});
+
+
 import express from "express";
 import { withBrowser } from "./linkedinService.js";
 
