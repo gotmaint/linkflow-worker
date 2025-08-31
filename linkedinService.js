@@ -1,8 +1,7 @@
-// linkedinService.js
 import { chromium } from "playwright";
 import fs from "fs";
 
-const STORAGE = "/tmp/linkedin-state.json"; // persiste la sessione tra run su Railway
+const STORAGE = "/tmp/linkedin-state.json";
 
 export async function withBrowser(fn) {
   const browser = await chromium.launch({
@@ -26,8 +25,6 @@ export async function withBrowser(fn) {
   });
 
   const page = await context.newPage();
-  await page.waitForTimeout(400 + Math.random() * 600);
-
   try {
     await ensureLoggedIn(page, context);
     return await fn({ browser, context, page });
@@ -45,33 +42,28 @@ async function ensureLoggedIn(page, context) {
     await context.addCookies([{
       name: "li_at",
       value: LI_AT,
-      domain: ".linkedin.com",   // <-- corretto
+      domain: ".linkedin.com",   // non .www.linkedin.com
       path: "/",
       httpOnly: true,
       secure: true,
-      sameSite: "Lax",
+      sameSite: "Lax"
     }]);
 
     await page.goto("https://www.linkedin.com/feed/", { waitUntil: "domcontentloaded" });
-    // se compare la topbar siamo dentro
-    if (await page.locator('[data-test-global-nav-link="mynetwork"], nav.global-nav').count())
-      return;
+    if (await page.locator('[data-test-global-nav-link="mynetwork"], nav.global-nav').count()) return;
   }
 
   const email = process.env.LINKEDIN_EMAIL;
   const pass  = process.env.LINKEDIN_PASSWORD;
-  if (!email || !pass) {
-    throw new Error("No LinkedIn session: set LI_AT or LINKEDIN_EMAIL/LINKEDIN_PASSWORD.");
-  }
+  if (!email || !pass) throw new Error("No LinkedIn session: set LI_AT or LINKEDIN_EMAIL/LINKEDIN_PASSWORD.");
 
   await page.goto("https://www.linkedin.com/login", { waitUntil: "domcontentloaded" });
-  await page.fill('input#username', email);
-  await page.fill('input#password', pass);
+  await page.fill("#username", email);
+  await page.fill("#password", pass);
   await page.click('button[type="submit"]');
   await page.waitForLoadState("networkidle");
 
-  // se richiede 2FA blocchiamo con messaggio chiaro
   if (await page.locator('input[name="pin"], input[name="challengeResponse"]').count()) {
-    throw new Error("2FA required: esegui 1 volta il login manuale/2FA e poi redeploy.");
+    throw new Error("2FA required: esegui una volta il login manuale con 2FA e poi redeploy.");
   }
 }
